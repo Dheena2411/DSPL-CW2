@@ -56,9 +56,11 @@ col4.metric("Avg USD Price", f"${filtered['usd_price'].mean():.2f}")
 st.divider()
 
 st.subheader("📈 Price Trends Over Time")
+st.caption("Note: The sharp rise in April 2026 reflects fewer countries reporting data for that period, which skews the average upward.")
 
 trend_df = (
-    filtered.groupby('reference_period_start')['usd_price']
+    filtered[filtered['usd_price'] < filtered['usd_price'].quantile(0.95)]
+    .groupby('reference_period_start')['usd_price']
     .mean()
     .reset_index()
 )
@@ -68,14 +70,17 @@ fig_trend = px.line(
     trend_df,
     x='Date',
     y='Average USD Price',
-    title='Average Global Food Price Over Time (USD)',
-    markers=True
+    title='Average Global Food Price Over Time (USD) — Outliers Excluded',
+    markers=True,
+    labels={'Date': 'Reporting Period', 'Average USD Price': 'Avg USD Price'}
 )
+fig_trend.update_traces(line_color='#00b4d8', marker=dict(size=8))
 st.plotly_chart(fig_trend, use_container_width=True)
 
 st.divider()
 
 st.subheader("🌐 Country Comparison")
+st.caption("Top 20 countries by average food price in USD. Country codes follow ISO 3166-1 alpha-3 standard.")
 
 country_df = (
     filtered.groupby('location_code')['usd_price']
@@ -84,16 +89,18 @@ country_df = (
     .sort_values('usd_price', ascending=False)
     .head(20)
 )
-country_df.columns = ['Country', 'Average USD Price']
+country_df.columns = ['Country Code', 'Average USD Price']
 
 fig_country = px.bar(
     country_df,
-    x='Country',
+    x='Country Code',
     y='Average USD Price',
     title='Top 20 Countries by Average Food Price (USD)',
     color='Average USD Price',
-    color_continuous_scale='Reds'
+    color_continuous_scale='Reds',
+    labels={'Country Code': 'Country (ISO Code)', 'Average USD Price': 'Avg Price (USD)'}
 )
+fig_country.update_layout(xaxis_tickangle=-45)
 st.plotly_chart(fig_country, use_container_width=True)
 
 st.divider()
@@ -117,13 +124,15 @@ with col_left:
         orientation='h',
         title='Average Price by Commodity Category (USD)',
         color='Average USD Price',
-        color_continuous_scale='Blues'
+        color_continuous_scale='Blues',
+        labels={'Category': 'Commodity Category', 'Average USD Price': 'Avg Price (USD)'}
     )
     st.plotly_chart(fig_cat, use_container_width=True)
 
 with col_right:
     top_commodities = (
-        filtered.groupby('commodity_name')['usd_price']
+        filtered[filtered['usd_price'] < filtered['usd_price'].quantile(0.95)]
+        .groupby('commodity_name')['usd_price']
         .mean()
         .reset_index()
         .sort_values('usd_price', ascending=False)
@@ -137,9 +146,39 @@ with col_right:
         orientation='h',
         title='Top 10 Most Expensive Commodities (USD)',
         color='Average USD Price',
-        color_continuous_scale='Greens'
+        color_continuous_scale='Greens',
+        labels={'Commodity': 'Commodity Name', 'Average USD Price': 'Avg Price (USD)'}
     )
     st.plotly_chart(fig_com, use_container_width=True)
+
+st.divider()
+
+st.subheader("🗺️ Price Map by Market Location")
+st.caption("Each dot represents a market. Colour indicates median USD price — darker red means higher prices. Size indicates number of commodities traded.")
+
+map_df = (
+    filtered.dropna(subset=['lat', 'lon'])
+    .groupby(['market_name', 'lat', 'lon'])
+    .agg(avg_price=('usd_price', 'median'), commodity_count=('commodity_name', 'nunique'))
+    .reset_index()
+)
+
+fig_map = px.scatter_mapbox(
+    map_df,
+    lat='lat',
+    lon='lon',
+    color='avg_price',
+    size='commodity_count',
+    hover_name='market_name',
+    hover_data={'avg_price': ':.2f', 'commodity_count': True, 'lat': False, 'lon': False},
+    color_continuous_scale='YlOrRd',
+    size_max=15,
+    zoom=1,
+    title='Median Food Price by Market Location',
+    labels={'avg_price': 'Median USD Price', 'commodity_count': 'No. of Commodities'}
+)
+fig_map.update_layout(mapbox_style="open-street-map")
+st.plotly_chart(fig_map, use_container_width=True)
 
 st.divider()
 
