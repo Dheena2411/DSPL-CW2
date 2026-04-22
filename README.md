@@ -14,6 +14,7 @@ HDX Global Food Price Dataset (2026) — sourced from the Humanitarian Data Exch
 
 ## Links
 - Streamlit App: https://dspl-cw2-aghszmmikztlyfcec7psth.streamlit.app/
+- Video Demonstration: https://www.loom.com/share/a77174d1df414f9d8239ec292ca3248d
 - GitHub Repository: https://github.com/Dheena2411/DSPL-CW2.git
 
 ## How to Run Locally
